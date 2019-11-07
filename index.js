@@ -1,10 +1,18 @@
 const SHA256 = require("crypto-js/sha256");
 
+class Transaction{
+  constructor(timestamp, payerAddress, payeeAddress, amount){
+    this.timestamp = timestamp;
+    this.payerAddress = payerAddress;
+    this.payeeAddress = payeeAddress;
+    this.amount = amount;
+  }
+}
+
 class Block {
-  constructor(index, timestamp, data, previousHash) {
-    this.index = index;
+  constructor(timestamp, transactions, previousHash) {
     this.timestamp = this.timestamp;
-    this.data = data;
+    this.transactions = transactions;
     this.nonce = 0;
     this.previousHash = this.previousHash;
     this.hash = this.calculateHash();
@@ -32,12 +40,26 @@ class Block {
 
 class Blockchain {
   constructor() {
-    this.chain = [this.createGenesisBlock()];
-    this.difficulty = 4;
+    this.chain = [];
+    this.difficulty = 3;
+    this.unminedTxns = [];
+    this.miningReward = 50;
+    this.createGenesisBlock();
   }
 
   createGenesisBlock() {
-    return new Block(0, "15/01/2019", "Genesis Block", "0");
+    let txn = new Transaction( Date.now(), "mint", "genesis", 0);
+    let block = new Block(Date.now(), [txn], "0");
+    this.chain.push(block);
+  }
+  mineCurrentBlock (minerAddress) {
+    let block = new Block(Date.now(), this.unminedTxns, this.getLatestBlock().hash);
+    block.mineBlock(this.difficulty);
+    console.log("Current block successfully mined!");
+    this.chain.push(block);
+
+    this.unminedTxns = [];
+      new Transaction(Date.now(), "mint", minerAddress, this.miningReward);
   }
 
   getLatestBlock() {
@@ -48,6 +70,25 @@ class Blockchain {
     newBlock.previousHash = this.getLatestBlock().hash;
     newBlock.mineBlock(this.difficulty);
     this.chain.push(newBlock);
+  }
+
+  createTransaction( txn ) {
+    this.unminedTxns.push(txn);
+  }
+
+  getAddressBalance ( address ) {
+    let balance = 0;
+
+    for(const block of this.chain){
+      for(const txn of block.transactions) {
+          if(txn.payerAddress === address){
+            balance -= txn.amount;
+          }
+          if(txn.payeeAddress === address){
+            balance += txn.amount;
+          }
+      }
+    }
   }
 
   isChainValid() {
@@ -68,19 +109,17 @@ class Blockchain {
   }
 }
 
-let demoChain = new Blockchain();
+let miloCoin = new Blockchain();
 
 
 
 console.log("Mining new block...");
-demoChain.addBlock(
-  new Block(1, "15/02/2018", {
-    amount: 10
-  })
-);
-console.log("Mining new block...");
-demoChain.addBlock(
-  new Block(2, "02/26/2018", {
-    amount: 25
-  })
-);
+miloCoin.createTransaction(new Transaction(Date.now(), "wallet-Alice", "wallet-Bob", 50) );
+miloCoin.createTransaction(new Transaction(Date.now(), "wallet-Bob", "wallet-Alice", 25) );
+
+console.log("Mining a block!");
+miloCoin.mineCurrentBlock("wallet-Minr49er");
+
+console.log("\nBalance: Alice: ", miloCoin.getAddressBalance("wallet-Alice") );
+console.log("\nBalance: Bob: ", miloCoin.getAddressBalance("wallet-Bob") );
+console.log("\nBalance: Minr49er: ", miloCoin.getAddressBalance("wallet-Minr49er") );
